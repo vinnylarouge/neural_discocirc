@@ -21,9 +21,10 @@ class OneNetworkTrainer(TrainerBaseClass):
                  lexicon,
                  hidden_layers,
                  model_class,
+                 model_save_path,
                  **kwargs
                  ):
-        super().__init__(wire_dimension=wire_dimension, lexicon=lexicon, hidden_layers=hidden_layers, model_class=model_class, **kwargs)
+        super().__init__(wire_dimension=wire_dimension, lexicon=lexicon, hidden_layers=hidden_layers, model_class=model_class, model_save_path=model_save_path, **kwargs)
         self.dense_layer = MyDenseLayer()
         self.initialize_lexicon_weights(lexicon)
 

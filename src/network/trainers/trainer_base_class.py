@@ -3,6 +3,9 @@ from abc import abstractmethod
 from sklearn.metrics import accuracy_score
 from tensorflow import keras
 import tensorflow as tf
+import os
+
+import json
 
 
 class TrainerBaseClass(keras.Model):
@@ -11,17 +14,28 @@ class TrainerBaseClass(keras.Model):
                  lexicon,
                  hidden_layers,
                  model_class,
+                 model_save_path,
                  **kwargs
                  ):
         super().__init__()
+        # Ensure model_save_path is a string
+        if not model_save_path or not isinstance(model_save_path, str):
+            raise ValueError("A valid model save path must be specified.")
+        # Ensure model_save_path is a valid and writable directory
+        if not os.path.isdir(model_save_path) or not os.access(model_save_path, os.W_OK):
+            raise ValueError("The specified model save path is not a valid or writable directory.")
+        
+        # Initialize model parameters and the model itself based on provided class and parameters
         self.wire_dimension = wire_dimension
         self.hidden_layers = hidden_layers
         self.lexicon = lexicon
         self.model_class = model_class(wire_dimension=wire_dimension,
                                        lexicon=lexicon, **kwargs)
+        # Tracker for monitoring the loss during training
         self.loss_tracker = keras.metrics.Mean(name="loss")
 
     def compile_dataset(self, dataset):
+        # Preprocess and compile the dataset for training, handling data that requires compilation
         compiled_data = {}
         for key in [self.model_class.context_key,
                     self.model_class.question_key,
@@ -36,6 +50,7 @@ class TrainerBaseClass(keras.Model):
 
     # @tf.function
     def train_step_for_sample(self, batch_index):
+        # Perform a training step for a given sample, including gradient computation
         contexts = [self.dataset[self.model_class.context_key][i]
                     for i in batch_index]
         questions = [self.dataset[self.model_class.question_key][i]
@@ -56,6 +71,7 @@ class TrainerBaseClass(keras.Model):
         return loss, grad
 
     def get_config(self):
+        # Return model configuration for serialization
         return {
             "wire_dimension": self.wire_dimension,
             "hidden_layers": self.hidden_layers,
@@ -63,14 +79,17 @@ class TrainerBaseClass(keras.Model):
 
     @classmethod
     def from_config(cls, config):
+        # Reconstruct the model from its configuration
         return cls(**config)
 
     @abstractmethod
     def load_model_trainer(model):
+        # Abstract method to be implemented by subclasses for model loading
         pass
 
     @classmethod
     def load_model(cls, path, model_class):
+        # Load a model from a given path, ensuring custom objects are recognized
         model = keras.models.load_model(
             path,
             custom_objects={cls.__name__: cls,
@@ -81,6 +100,7 @@ class TrainerBaseClass(keras.Model):
         return model
 
     def call_on_dataset(self, dataset):
+        # Process the dataset through the model, handling data requiring compilation
         called_data = {}
         for key in [self.model_class.context_key,
                               self.model_class.question_key,
@@ -93,6 +113,7 @@ class TrainerBaseClass(keras.Model):
         return called_data[self.model_class.context_key], called_data[self.model_class.question_key], called_data[self.model_class.answer_key]
 
     def get_accuracy(self, dataset):
+        # Calculate accuracy of the model predictions against true labels
         location_predicted = []
         location_true = []
 
@@ -117,15 +138,13 @@ class TrainerBaseClass(keras.Model):
         accuracy = accuracy_score(location_true, location_predicted)
         return accuracy
 
-    def fit(self, train_dataset, validation_dataset, epochs, batch_size=32,
-            **kwargs):
-        print('compiling train dataset (size: {})...'.
-              format(len(train_dataset)))
+    def fit(self, train_dataset, validation_dataset, epochs, batch_size=32, **kwargs):
+        # Prepare datasets and perform the training process
+        print('compiling train dataset (size: {})...'.format(len(train_dataset)))
 
         self.dataset = self.compile_dataset(train_dataset)
 
-        print('compiling validation dataset (size: {})...'
-              .format(len(validation_dataset)))
+        print('compiling validation dataset (size: {})...'.format(len(validation_dataset)))
         self.validation_dataset = self.compile_dataset(validation_dataset)
 
         input_index_dataset = tf.data.Dataset.range(len(train_dataset))
@@ -133,3 +152,31 @@ class TrainerBaseClass(keras.Model):
         input_index_dataset = input_index_dataset.batch(batch_size)
 
         return super().fit(input_index_dataset, epochs=epochs, **kwargs)
+
+    def save_model(self, path: str = None) -> None:
+        """
+        Saves the trained model to the specified path or to the default path
+        set during initialization.
+
+        Args:
+            path (str, optional): The file path or directory to save the model.
+                                  If None, uses the path provided during initialization.
+        """
+        if path is None:
+            path = self.model_save_path
+        if not path:
+            raise ValueError("Model save path is not specified.")
+
+        # Create the directory if it doesn't exist
+        os.makedirs(path, exist_ok=True)
+
+        # Save the model's weights
+        self.save_weights(os.path.join(path, "weights"), save_format='tf')
+
+        # Save the model configuration as JSON
+        model_config = self.get_config()
+        config_path = os.path.join(path, "model_config.json")
+        with open(config_path, 'w') as config_file:
+            json.dump(model_config, config_file)
+
+        print(f"Model saved to {path}")

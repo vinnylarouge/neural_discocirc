@@ -10,14 +10,15 @@ class IndividualNetworksTrainer(TrainerBaseClass):
                  wire_dimension,
                  hidden_layers,
                  model_class,
+                 model_save_path,
                  **kwargs):
-        super().__init__(wire_dimension=wire_dimension, lexicon=lexicon, hidden_layers=hidden_layers, model_class=model_class, **kwargs)
+        super().__init__(wire_dimension=wire_dimension, lexicon=lexicon, hidden_layers=hidden_layers, model_class=model_class, model_save_path=model_save_path, **kwargs)
         self.nn_boxes = initialize_boxes(lexicon, wire_dimension,
                                          hidden_layers)
         self.nn_functor = get_fast_nn_functor(self.nn_boxes, wire_dimension)
 
     @classmethod
-    def load_model_tainer(model):
+    def load_model_trainer(model):
         model.nn_functor = get_fast_nn_functor(model.nn_boxes,
                                                model.wire_dimension)
         return model
