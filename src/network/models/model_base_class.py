@@ -5,6 +5,7 @@ from tensorflow import keras
 
 
 class ModelBaseClass(keras.layers.Layer, ABC):
+    #Tokens to be passed to TrainerBaseClass for evaluation
     data_requiring_compilation = {"context_circ", "question_circ"}
 
     def __init__(self, wire_dimension, context_key, question_key, answer_key):

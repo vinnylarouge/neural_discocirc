@@ -1,5 +1,5 @@
 from abc import abstractmethod
-
+from typing import Any, Dict, List, Tuple, Type
 from sklearn.metrics import accuracy_score
 from tensorflow import keras
 import tensorflow as tf
@@ -7,16 +7,31 @@ import os
 
 import json
 
+"""
+Subclasses need to concretely implement the following methods:
+
+compile_diagrams()
+"""
 
 class TrainerBaseClass(keras.Model):
     def __init__(self,
-                 wire_dimension,
-                 lexicon,
-                 hidden_layers,
-                 model_class,
-                 model_save_path,
-                 **kwargs
+                 wire_dimension: int,
+                 lexicon: Dict[str, Any],
+                 hidden_layers: List[int],
+                 model_class: Type[keras.Model],
+                 model_save_path: str,
+                 **kwargs: Any
                  ):
+        """Initializes the TrainerBaseClass with the given parameters.
+
+        Args:
+            wire_dimension: The dimension of the wire or embedding size.
+            lexicon: A dictionary representing the lexicon or vocabulary.
+            hidden_layers: A list of integers representing the size of hidden layers.
+            model_class: The class of the model to be trained.
+            model_save_path: The file system path where the model should be saved.
+            **kwargs: Additional keyword arguments to pass to the model class initializer.
+        """
         super().__init__()
         # Ensure model_save_path is a string
         if not model_save_path or not isinstance(model_save_path, str):
@@ -34,13 +49,22 @@ class TrainerBaseClass(keras.Model):
         # Tracker for monitoring the loss during training
         self.loss_tracker = keras.metrics.Mean(name="loss")
 
-    def compile_dataset(self, dataset):
-        # Preprocess and compile the dataset for training, handling data that requires compilation
+    def compile_dataset(self, dataset: List[Dict[str, Any]]) -> Dict[str, List[Any]]:
+        """Preprocesses and compiles the dataset for training.
+
+        Args:
+            dataset: A list of dictionaries, where each dictionary represents a data sample.
+
+        Returns:
+            A dictionary with keys corresponding to context, question, and answer, and values
+            being the compiled data for each.
+        """
         compiled_data = {}
         for key in [self.model_class.context_key,
                     self.model_class.question_key,
                     self.model_class.answer_key]:
             current_data = [data[key] for data in dataset]
+            #Catching the tokens passed from ModelBaseClass
             if key in self.model_class.data_requiring_compilation:
                 compiled_data[key] = self.compile_diagrams(current_data)
             else:
@@ -49,7 +73,15 @@ class TrainerBaseClass(keras.Model):
         return compiled_data
 
     # @tf.function
-    def train_step_for_sample(self, batch_index):
+    def train_step_for_sample(self, batch_index: List[int]) -> Tuple[tf.Tensor, tf.Tensor]:
+        """Performs a training step for a given sample.
+
+        Args:
+            batch_index: A list of indices for the current batch.
+
+        Returns:
+            A tuple containing the loss and gradients for the batch.
+        """
         # Perform a training step for a given sample, including gradient computation
         contexts = [self.dataset[self.model_class.context_key][i]
                     for i in batch_index]
@@ -112,18 +144,26 @@ class TrainerBaseClass(keras.Model):
 
         return called_data[self.model_class.context_key], called_data[self.model_class.question_key], called_data[self.model_class.answer_key]
 
-    def get_accuracy(self, dataset):
-        # Calculate accuracy of the model predictions against true labels
+    def get_accuracy(self, dataset: List[Dict[str, Any]]) -> float:
+        """Calculates the model's accuracy on the given dataset.
+
+        Args:
+            dataset: A list of dictionaries representing the dataset.
+
+        Returns:
+            The accuracy of the model as a float.
+        """
         location_predicted = []
         location_true = []
-
-        for i in range(len(dataset[self.model_class.context_key])):
-            print('predicting {} / {}'.format(i, len(dataset)), end='\r')
-
+        data = self.compile_dataset(dataset) #:: Dict(Str -> List[Any])
+        key = self.model_class.context_key #:: Str
+        for i in range(len(data[key])):
+            # Iterate over dataset to predict and compare with true locations
+            print(f'predicting {i + 1} / {len(dataset)}', end='\r')
             contexts, questions, answers = self.call_on_dataset({
-                self.model_class.context_key: [dataset[self.model_class.context_key][i]],
-                self.model_class.question_key: [dataset[self.model_class.question_key][i]],
-                self.model_class.answer_key: [dataset[self.model_class.answer_key][i]]
+                self.model_class.context_key: [data[self.model_class.context_key][i]],
+                self.model_class.question_key: [data[self.model_class.question_key][i]],
+                self.model_class.answer_key: [data[self.model_class.answer_key][i]]
             })
             answer_prob = self.model_class.get_answer_prob(contexts,
                                                            questions)
