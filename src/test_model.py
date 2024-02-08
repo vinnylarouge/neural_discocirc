@@ -34,7 +34,7 @@ config = {
     "model_class": AddLogitsModel, # Model class for the network.
     "dataset": "task01_test.p", # Dataset file name.
     "vocab": "task01_test.p", # Vocabulary file name.
-    "weights": "AddLogitsModel/AddLogitsModel_2024_02_04_15_37_34" #Weights path
+    "weights": "AddLogitsModel/AddLogitsModel_2024_02_08_05_34_30" #Weights path
 }
 
 # Function to create a DataFrame for answers from the neural network.
@@ -76,7 +76,7 @@ def test(base_path, model_path, vocab_path, test_path):
 
     print('loading pickled dataset...')
     with open(test_base_path, "rb") as f:
-        dataset = pickle.load(f)[:5]  # Load the dataset, limit to the first 5 items for testing.
+        dataset = pickle.load(f)[:50]  # Load the dataset, limit to the first 5 items for testing.
     print('compiling dataset (size: {})...'.format(len(dataset)))
 
     # Load the model configuration from the saved JSON file.
@@ -111,7 +111,7 @@ def test(base_path, model_path, vocab_path, test_path):
 
     # Calculate and print the accuracy on the test set.
     print('calculating accuracy...')
-    accuracy = config["trainer"].get_accuracy(discocirc_trainer, dataset)
+    accuracy = discocirc_trainer.get_accuracy(discocirc_trainer.compile_dataset(dataset))
 
     print("The accuracy on the test set is", accuracy)
 

@@ -155,26 +155,21 @@ class TrainerBaseClass(keras.Model):
         """
         location_predicted = []
         location_true = []
-        data = self.compile_dataset(dataset) #:: Dict(Str -> List[Any])
-        key = self.model_class.context_key #:: Str
-        for i in range(len(data[key])):
-            # Iterate over dataset to predict and compare with true locations
-            print(f'predicting {i + 1} / {len(dataset)}', end='\r')
+        for i in range(len(dataset[self.model_class.context_key])):
+            print('predicting {} / {}'.format(i, len(dataset)), end='\r')
             contexts, questions, answers = self.call_on_dataset({
-                self.model_class.context_key: [data[self.model_class.context_key][i]],
-                self.model_class.question_key: [data[self.model_class.question_key][i]],
-                self.model_class.answer_key: [data[self.model_class.answer_key][i]]
+                self.model_class.context_key: [dataset[self.model_class.context_key][i]],
+                self.model_class.question_key: [dataset[self.model_class.question_key][i]],
+                self.model_class.answer_key: [dataset[self.model_class.answer_key][i]]
             })
             answer_prob = self.model_class.get_answer_prob(contexts,
                                                            questions)
-
             location_predicted.append(
                 self.model_class.get_prediction_result(answer_prob[0])
             )
             location_true.append(
                 self.model_class.get_expected_result(answers[0])
             )
-
         accuracy = accuracy_score(location_true, location_predicted)
         return accuracy
 

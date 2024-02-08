@@ -51,15 +51,15 @@ output_config = {
 
 training_config = {
     "batch_size": 32,
-    "dataset_size": 20,  # -1 for entire dataset
+    "dataset_size": -1,  # -1 for entire dataset
     "epochs": 20,
-    "learning_rate": 0.001,
+    "learning_rate": 0.01,
     "model": AddLogitsModel,
     "task": 1,
     "trainer": OneNetworkTrainer,
     # "trainer": IndividualNetworksTrainer,
-    # "dataset_split": ("random", 1), # (split_type, random state)
-    "dataset_split": ("depth", [1]) # (split_type, depths of training set)
+    "dataset_split": ("random", 1), # (split_type, random state)
+    # "dataset_split": ("depth", [1]) # (split_type, depths of training set)
 
 }
 
@@ -147,7 +147,7 @@ def train(base_path, save_path, vocab_path,
     print('Loading vocabulary: {}'.format(vocab_file))
     with open(vocab_file, 'rb') as file:
         lexicon = pickle.load(file)
-
+        print(f"lexicon first element is of type: {type(lexicon[0])} !!!")
     dataset_file = base_path + data_path + train_dataset_name
     print('Loading pickled dataset: {}'.format(dataset_file))
     with open(dataset_file, "rb") as f:
